@@ -1,0 +1,19 @@
+.btn_close {
+	border-radius: 50%!important;
+	background: #fff!important;
+	height: 24px!important
+}
+
+.btn_close .webix_el_box {
+	height: 24px!important;
+}
+
+.webix_el_button.btn_close .webix_img_btn_abs .webix_icon {
+	color: #3498db;
+	margin-left: 3px;
+}
+
+.webix_el_button.btn_close .webix_img_btn_abs {
+	border: 0;
+	border-color: none;
+}

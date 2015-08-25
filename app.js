@@ -1,3 +1,57 @@
+var users = [
+	{
+		"id": 1,
+		"full_name": "Сидни Кросби",
+		"personal_number": 1,
+		"docs": [
+			{
+				"id": 1,
+				"doc_type": "Паспорт",
+				"doc_country": "Канада",
+				"doc_series": "CN",
+				"doc_number": "12345",
+				"doc_name_rus": "Паспорт",
+				"doc_name_blr": "Пашпарт",
+				"doc_date_get": "08/24/2012",
+				"doc_date_start": "08/24/2012",
+				"doc_date_end": "08/24/2016"
+			}
+		]
+	},
+
+	{
+		"id": 2,
+		"full_name": "Евгений Малкин",
+		"personal_number": 2,
+		"docs": [
+			{
+				"id": 1,
+				"doc_type": "Паспорт",
+				"doc_country": "Россия",
+				"doc_series": "RU",
+				"doc_number": "12345",
+				"doc_name_rus": "Паспорт",
+				"doc_name_blr": "Пашпарт",
+				"doc_date_get": "08/12/2014",
+				"doc_date_start": "08/12/2014",
+				"doc_date_end": "08/12/2018"
+			},
+			{
+				"id": 2,
+				"doc_type": "Паспорт",
+				"doc_country": "Канада",
+				"doc_series": "CN",
+				"doc_number": "678910",
+				"doc_name_rus": "Паспорт",
+				"doc_name_blr": "Пашпарт",
+				"doc_date_get": "01/01/2015",
+				"doc_date_start": "01/01/2015",
+				"doc_date_end": "01/01/2020"
+			}
+		]
+	}
+];
+
 webix.ui({
 	height: '100%',
 	cols: [
@@ -18,7 +72,7 @@ webix.ui({
 						{ view: 'text', name: 'doc_number', placeholder: 'Введите номер документа', label: 'Документ', labelPosition: 'top' },
 						{
 							cols: [
-								{ view: 'button', type: 'form', value: 'Поиск' },
+								{ view: 'button', type: 'form', value: 'Поиск', click: 'searchUser' },
 								{ view: 'button', value: 'Очистить', click: "$$('search-form').clear()" }
 							]
 						}
@@ -42,10 +96,12 @@ webix.ui({
 				{
 					view: 'datatable',
 					minHeight: 200,
+					id: 'user-list',
+					select: true,
 					columns: [
 						{ id: 'full_name', header: 'ФИО', adjust: true }
 					],
-					data: []
+					data: users
 				},
 
 				{ view: 'resizer' },
@@ -63,15 +119,15 @@ webix.ui({
 								rows: [
 									{
 										view: 'datatable',
+										id: 'doc-list',
 										columns: [
-											{ id: 'type', header: 'Тип', adjust: true },
-											{ id: 'number', header: 'Номер', adjust: true },
-											{ id: 'series', header: 'Серия', adjust: true },
-											{ id: 'country', header: 'Страна', adjust: true },
-											{ id: 'issued_by', header: 'Кем выдан', adjust: true },
-											{ id: 'date', header: 'Дата', adjust: true }
-										],
-										data: []
+											{ id: 'doc_type', header: 'Тип', adjust: true },
+											{ id: 'doc_number', header: 'Номер', adjust: true },
+											{ id: 'doc_series', header: 'Серия', adjust: true },
+											{ id: 'doc_country', header: 'Страна', adjust: true },
+											{ id: 'doc_issued_by', header: 'Кем выдан', adjust: true },
+											{ id: 'doc_date_get', header: 'Дата', adjust: true }
+										]
 									}
 								]
 							}
@@ -135,3 +191,64 @@ webix.ui({
 		]
 	}
 });
+
+$$('user-list').attachEvent('onAfterSelect', function(id){
+	var docList = this.getItem(id).docs;
+
+	$$('doc-list').clearAll(); // remove all items
+
+	// add all docs of selected user into $$('doc-list')
+	for (var doc in docList) {
+		$$('doc-list').add(docList[doc]);
+	}
+});
+
+function searchUser() {
+	var reqData = $$('search-form').getValues(),
+		user = {
+			'personal_number': reqData.personal_number,
+			'full_name': reqData.full_name,
+			'doc_number': reqData.doc_number
+		};
+
+	var valCompare = function(str1, str2) {
+		str1 = str1.toString().toLowerCase();
+		str2 = str2.toString().toLowerCase();
+
+		return str1.localeCompare(str2) === 0;
+	}
+
+	$$('user-list').filter(function(obj){
+		for (var requisite in user) {
+			// we're interested in not empty fields
+			if (user[requisite] !== "") {
+
+				// try to access value with key = requisite
+				var nextRequisite = obj[requisite];
+
+				// if nextRequisite is undefined then we need
+				// to search value in `docs` property of user obj
+				if (!nextRequisite) {
+					for (var doc in obj['docs']) {
+						if (valCompare(obj['docs'][doc][requisite], user[requisite])) {
+							nextRequisite = obj['docs'][doc][requisite];
+							break;
+						}
+					}
+				}
+
+				// if nextRequisite is undefined or 
+				// data can't be found in datastore then return false
+				if (!nextRequisite || !valCompare(nextRequisite, user[requisite])) {
+					return false;
+				}
+			}
+		}
+
+		return true;
+	});
+
+	// Update doc list after updating of user list
+	// TO-DO: try to fire event "onAfterFilter" on $$('doc-list')
+	$$('doc-list').clearAll();
+}

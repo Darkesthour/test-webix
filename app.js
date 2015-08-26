@@ -89,7 +89,7 @@ webix.ui({
 					view: 'toolbar',
 					cols: [
 						{ view: 'label', label: 'Результаты поиска:' },
-						{ view: 'button', type: 'iconButton', icon: 'file-excel-o', width: 225, label: 'Внести новый документ', align: 'right', click: "$$('newdoc-popup').show()" }
+						{ view: 'button', type: 'iconButton', icon: 'file-excel-o', width: 225, label: 'Внести новый документ', align: 'right', click: 'showPopupNewDocForm' }
 					]
 				},
 
@@ -126,7 +126,7 @@ webix.ui({
 											{ id: 'doc_series', header: 'Серия', adjust: true },
 											{ id: 'doc_country', header: 'Страна', adjust: true },
 											{ id: 'doc_issued_by', header: 'Кем выдан', adjust: true },
-											{ id: 'doc_date_get', header: 'Дата', adjust: true }
+											{ id: 'doc_date_end', header: 'Дата', adjust: true }
 										]
 									}
 								]
@@ -156,13 +156,53 @@ webix.ui({
 	body: {
 		view: 'form',
 		id: 'newdoc-form',
+		rules: {
+			'doc_type': webix.rules.isNotEmpty,
+			'doc_country': webix.rules.isNotEmpty,
+			'doc_series': webix.rules.isNotEmpty,
+			'doc_number': webix.rules.isNotEmpty,
+			'doc_number': webix.rules.isNumber,
+			'doc_date_end': webix.rules.isNotEmpty
+		},
+		elementsConfig: {
+			bottomPadding: 36,
+		},
 		rows: [
-			{ view: 'richselect', name: 'doc_type', label: 'Тип документа', labelPosition: 'top', placeholder: 'Выберите тип документа', options: [] },
+			{
+				view: 'richselect',
+				id: 'doc-type',
+				name: 'doc_type',
+				label: 'Тип документа',
+				labelPosition: 'top',
+				placeholder: 'Выберите тип документа',
+				options: ['Паспорт'],
+				invalidMessage: 'Это поле обязательно для заполнения'
+			},
 			{
 				cols: [
-					{ view: 'richselect', name: 'doc_country', label: 'Страна выдачи', labelPosition: 'top', options: [] },
-					{ view: 'text', name: 'doc_series', label: 'Серия', labelPosition: 'top' },
-					{ view: 'text', name: 'doc_number', label: 'Номер', labelPosition: 'top' }
+					{
+						view: 'richselect',
+						id: 'doc-country',
+						name: 'doc_country',
+						label: 'Страна выдачи',
+						labelPosition: 'top',
+						options: ['Беларусь', 'Канада',	'Россия'],
+						invalidMessage: 'Это поле обязательно для заполнения'
+					},
+					{
+						view: 'text',
+						name: 'doc_series',
+						label: 'Серия',
+						labelPosition: 'top',
+						invalidMessage: 'Это поле обязательно для заполнения'
+					},
+					{
+						view: 'text',
+						name: 'doc_number',
+						label: 'Номер',
+						labelPosition: 'top',
+						invalidMessage: 'Это поле обязательно для заполнения и должно содержать только цифры'
+					}
 				]
 			},
 			{
@@ -179,15 +219,40 @@ webix.ui({
 						{ height: 20 },
 						{
 							cols: [
-								{ view: 'datepicker', name: 'doc_date_get', label: 'Дата выдачи', labelPosition: 'top', date: new Date(), stringResult: true },
-								{ view: 'datepicker', name: 'doc_date_start', label: 'Действителен с', labelPosition: 'top', date: new Date(), stringResult: true },
-								{ view: 'datepicker', name: 'doc_date_end', label: 'Действителен по', labelPosition: 'top', date: new Date(), stringResult: true }
+								{
+									view: 'datepicker',
+									name: 'doc_date_get',
+									label: 'Дата выдачи',
+									labelPosition: 'top',
+									date: new Date(),
+									stringResult: true,
+									format: '%m/%d/%Y'
+								},
+								{
+									view: 'datepicker',
+									name: 'doc_date_start',
+									label: 'Действителен с',
+									labelPosition: 'top',
+									date: new Date(),
+									stringResult: true,
+									format: '%m/%d/%Y'
+								},
+								{
+									view: 'datepicker',
+									name: 'doc_date_end',
+									label: 'Действителен по',
+									labelPosition: 'top',
+									date: new Date(),
+									stringResult: true,
+									format: '%m/%d/%Y',
+									invalidMessage: 'Это поле обязательно для заполнения'
+								}
 							]
 						}
 					]
 				}
 			},
-			{ view: 'button', value: 'Создать', inputWidth: 180, align: 'center' }
+			{ view: 'button', value: 'Создать', inputWidth: 180, align: 'center', click: 'addNewDoc' }
 		]
 	}
 });
@@ -197,11 +262,40 @@ $$('user-list').attachEvent('onAfterSelect', function(id){
 
 	$$('doc-list').clearAll(); // remove all items
 
-	// add all docs of selected user into $$('doc-list')
+	// Add all docs of selected user into $$('doc-list')
 	for (var doc in docList) {
 		$$('doc-list').add(docList[doc]);
 	}
 });
+
+// When user add a new doc it's must to update the doc list for selected user.
+// The doc list is update when user select some row in user list, so simulate selection of row
+$$('user-list').attachEvent('onDataUpdate', function(){
+	var userSelectedID = this.getSelectedId().id;
+
+	// Simulate selection of row
+	this.unselect(userSelectedID);
+	this.select(userSelectedID);
+});
+
+function showPopupNewDocForm() {
+	// Show error message if user don't select some row in user table
+	// for adding a new doc
+	if (!$$('user-list').getSelectedId()) {
+		webix.message({
+			type: 'error',
+			text: 'Для добавления нового документа необходимо выбрать пользователя',
+			expire: 4000
+		});
+
+		$$('newdoc-popup').hide();
+
+		return;
+	}
+	else {
+		$$('newdoc-popup').show();
+	}
+}
 
 function searchUser() {
 	var reqData = $$('search-form').getValues(),
@@ -220,13 +314,13 @@ function searchUser() {
 
 	$$('user-list').filter(function(obj){
 		for (var requisite in user) {
-			// we're interested in not empty fields
+			// We're interested in not empty fields
 			if (user[requisite] !== "") {
 
-				// try to access value with key = requisite
+				// Try to access value with key = requisite
 				var nextRequisite = obj[requisite];
 
-				// if nextRequisite is undefined then we need
+				// If nextRequisite is undefined then we need
 				// to search value in `docs` property of user obj
 				if (!nextRequisite) {
 					for (var doc in obj['docs']) {
@@ -237,7 +331,7 @@ function searchUser() {
 					}
 				}
 
-				// if nextRequisite is undefined or 
+				// If nextRequisite is undefined or 
 				// data can't be found in datastore then return false
 				if (!nextRequisite || !valCompare(nextRequisite, user[requisite])) {
 					return false;
@@ -251,4 +345,32 @@ function searchUser() {
 	// Update doc list after updating of user list
 	// TO-DO: try to fire event "onAfterFilter" on $$('doc-list')
 	$$('doc-list').clearAll();
+}
+
+function addNewDoc() {
+	// At first validate the form
+	if (!$$('newdoc-form').validate()) return;
+
+	var userSelectedID = $$('user-list').getSelectedId().id,
+		reqData = $$('newdoc-form').getValues(),
+		newDoc = {
+			"doc_type": reqData.doc_type,
+			"doc_country": reqData.doc_country,
+			"doc_series": reqData.doc_series,
+			"doc_number": reqData.doc_number,
+			"doc_name_rus": reqData.doc_name_rus,
+			"doc_name_blr": reqData.doc_name_blr,
+			"doc_date_get": reqData.doc_date_get,
+			"doc_date_start": reqData.doc_date_start,
+			"doc_date_end": reqData.doc_date_end
+		};
+
+	var userUpdate = $$('user-list').getItem(userSelectedID);
+
+	userUpdate['docs'].push(newDoc); // Update doc list for selected user
+	$$('user-list').updateItem(userSelectedID, userUpdate);
+
+	// Clear form
+	$$('newdoc-form').clear();
+	webix.message('Новый документ успешно добавлен');
 }
